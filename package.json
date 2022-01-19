@@ -1,0 +1,19 @@
+{
+  "name": "db.js",
+  "version": "0.1.0",
+  "main": "dist/index.js",
+  "module": "./dist/index.mjs",
+  "exports": {
+    "import": "./dist/index.mjs",
+    "require": "./dist/index.js"
+  },
+  "scripts": {
+    "build":  "tsup lib/index.ts --format cjs,esm",
+    "watch": "npm run build -- --watch"
+  },
+  "devDependencies": {
+    "@types/node": "^17.0.10",
+    "prettier": "^2.5.1",
+    "tsup": "^5.11.11"
+  }
+}
