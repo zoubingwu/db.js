@@ -47,7 +47,7 @@ function executeStatement(stmt: Statement): string {
 
 repl.start({
   prompt: 'db.js >> ',
-  eval: (evalCmd: string, _, __, callback) => {
+  eval: (evalCmd, _, __, callback) => {
     const cmd = evalCmd.trim();
     const { stmt, result } = prepareStatement(cmd);
 

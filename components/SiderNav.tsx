@@ -14,10 +14,10 @@ const Nav: React.FC<{ navs: { route: string; title: string }[] }> = ({
   return (
     <div className="relative w-400px flex-grow-0 flex-shrink-0">
       <div className="site-nav overflow-y-auto fixed ml-[-999px] w-1400px h-100vh pb-30px pl-1000px transition">
-        <div className="flex flex-col pt-40px pb-15px">
-          <h1>Let's Build a Simple Database</h1>
+        <div className="flex flex-col pt-60px pb-15px">
+          <h1>Build a Simple Database</h1>
           <p>
-            Writing a SQLite database from scratch with{' '}
+            Writing a simple database from scratch with{' '}
             <span className="font-bold">Node.js</span>!
           </p>
         </div>
