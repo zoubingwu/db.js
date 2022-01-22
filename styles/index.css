@@ -1,0 +1,224 @@
+::selection {
+  background: rgba(125, 188, 255, 0.6);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background-color: #fff;
+  overflow: overlay;
+  font-size: 14px;
+  color: #595959;
+  font-weight: 400;
+  letter-spacing: 0;
+  line-height: 1.28581;
+  text-transform: none;
+  font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen,
+    Ubuntu, Cantarell, Open Sans, Helvetica Neue, sans-serif;
+}
+
+.dark-theme .shiki.github-light {
+  display: none;
+}
+
+.light-theme .shiki.github-dark {
+  display: none;
+}
+
+.site-nav {
+  box-shadow: 1px 0 0 rgba(16, 22, 26, 0.15);
+}
+
+.dark-theme .site-nav-title {
+  color: #a7b6c2;
+}
+
+.site-nav-divider {
+  background-image: linear-gradient(
+    90deg,
+    rgba(16, 22, 26, 0) 0,
+    rgba(16, 22, 26, 0.15) 40%
+  );
+  height: 1px;
+  margin-left: -50px;
+  padding: 0;
+}
+
+.site-nav-button {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  cursor: pointer;
+  margin-left: -50px;
+  padding: 10px 15px 10px 54px;
+}
+
+.dark-theme .site-nav {
+  color: #ffffff;
+  background: rgba(57, 75, 89, 1);
+}
+.light-theme .site-nav {
+  color: rgba(24, 32, 38, 1);
+  background-color: #ffffff;
+}
+
+.dark-theme .site-nav-button:hover {
+  background-image: linear-gradient(90deg, rgba(48, 64, 77, 0) 0, #30404d 40%);
+}
+
+.light-theme .site-nav-button:hover {
+  background-image: linear-gradient(
+    90deg,
+    rgba(245, 248, 250, 0) 0,
+    #f5f8fa 40%
+  );
+}
+
+a,
+a:hover {
+  color: #106ba3;
+}
+
+.dark-theme a,
+.dark-theme a:hover {
+  color: #48aff0;
+}
+
+.site-main-content p > code {
+  transition: background-color 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  font-family: monospace;
+  text-transform: none;
+  border-radius: 3px;
+  padding: 2px 5px;
+}
+
+.light-theme .site-main-content p > code {
+  background: hsla(0, 0%, 100%, 0.7);
+  box-shadow: inset 0 0 0 1px rgba(16, 22, 26, 0.2);
+  color: #5c7080;
+}
+
+.dark-theme .site-main-content p > code {
+  background: rgba(16, 22, 26, 0.3);
+  box-shadow: inset 0 0 0 1px rgba(16, 22, 26, 0.4);
+  color: #a7b6c2;
+}
+
+ul {
+  list-style-type: disc;
+  padding-left: 14px;
+  line-height: 1.6;
+}
+
+pre {
+  /* In theory shiki will overwrite these, but this is to make sure there are defaults regardless */
+  background-color: white;
+  color: black;
+
+  /* Give it some space to breathe */
+  padding: 12px;
+
+  /* Important to allow the code to move horizontally; */
+  overflow-x: auto;
+  position: relative;
+  border-radius: 6px;
+  box-shadow: inset 0 0 0 1px rgba(16, 22, 26, 0.15);
+}
+
+pre.shiki {
+  overflow-x: auto;
+}
+
+pre.shiki:hover .dim {
+  opacity: 1;
+}
+
+pre.shiki div.dim {
+  opacity: 0.5;
+}
+
+pre.shiki div.dim,
+pre.shiki div.highlight {
+  margin: 0;
+  padding: 0;
+}
+
+pre.shiki div.highlight {
+  opacity: 1;
+  background-color: #f1f8ff;
+}
+
+pre.shiki div.line {
+  min-height: 1rem;
+}
+
+/** Don't show the language identifiers */
+pre.shiki .language-id {
+  display: none;
+}
+
+pre code {
+  font-size: 13px;
+  font-family: 'JetBrains Mono', Menlo, Monaco, Consolas, Courier New, monospace;
+  white-space: pre;
+  -webkit-overflow-scrolling: touch;
+}
+
+pre code a {
+  text-decoration: none;
+}
+
+p,
+ul,
+ol,
+table,
+pre,
+dl {
+  margin: 0 0 20px;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  margin: 0 0 20px;
+}
+
+h1,
+h2,
+h3 {
+  line-height: 1.1;
+}
+
+h1,
+h2,
+h3 {
+  line-height: 1.1;
+}
+
+h1 {
+  font-size: 28px;
+  font-weight: 500;
+}
+
+h2 {
+  font-weight: 500;
+}
+
+h3,
+h4,
+h5,
+h6 {
+  font-weight: 500;
+}
+
+blockquote {
+  border-left: 1px solid #e5e5e5;
+  margin: 0;
+  padding: 0 0 0 20px;
+  font-style: italic;
+}
