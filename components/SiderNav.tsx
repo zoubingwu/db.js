@@ -14,24 +14,12 @@ const Nav: React.FC<{ navs: { route: string; title: string }[] }> = ({
   return (
     <div className="relative w-400px flex-grow-0 flex-shrink-0">
       <div className="site-nav overflow-y-auto fixed ml-[-999px] w-1400px h-100vh pb-30px pl-1000px transition">
-        <div className="flex flex-col pt-60px pb-15px">
+        <div className="flex flex-col pt-60px">
           <h1>Build a Simple Database</h1>
           <p>
             Writing a simple database from scratch with{' '}
             <span className="font-bold">Node.js</span>!
           </p>
-        </div>
-        <div className="site-nav-divider" />
-        <div
-          className="site-nav-button"
-          onClick={() => {
-            setDarkMode(!darkMode);
-          }}
-        >
-          {darkMode ? <IoMdSunny /> : <IoMdMoon />}
-          <span className="ml-4">
-            {darkMode ? 'Light Theme' : 'Dark Theme'}
-          </span>
         </div>
         <div className="site-nav-divider" />
 
@@ -52,6 +40,15 @@ const Nav: React.FC<{ navs: { route: string; title: string }[] }> = ({
         </ul>
 
         <small className="flex items-center">
+          <span
+            className="pl-14px cursor-pointer mr-2 flex items-center relative top-[-1px]"
+            onClick={() => {
+              setDarkMode(!darkMode);
+            }}
+          >
+            {darkMode ? <IoMdSunny /> : <IoMdMoon />}
+          </span>
+
           <a
             href="https://github.com/zoubingwu/db.js"
             target="_blank"
