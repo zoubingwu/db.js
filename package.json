@@ -1,18 +1,12 @@
 {
   "name": "db.js",
   "version": "0.1.0",
-  "main": "dist/index.js",
-  "module": "./dist/index.mjs",
-  "exports": {
-    "import": "./dist/index.mjs",
-    "require": "./dist/index.js"
-  },
+  "main": "db.ts",
   "scripts": {
-    "build": "tsup lib/index.ts --format cjs,esm",
-    "watch": "npm run build -- --watch",
-    "dev": "next dev",
+    "start": "ts-node db.ts",
+    "start:doc": "next dev",
     "build:doc": "next build",
-    "start": "next start"
+    "fmt": "pretty-quick --pattern \"**/*.*(js|ts|tsx|md)\" --ignore-path .gitignore"
   },
   "devDependencies": {
     "@types/markdown-it": "^12.2.3",
@@ -22,11 +16,12 @@
     "markdown-it": "^12.3.2",
     "next": "^12.0.8",
     "prettier": "^2.5.1",
+    "pretty-quick": "^3.1.3",
     "react": "^17.0.2",
     "react-dom": "^17.0.2",
     "react-icons": "^4.3.1",
     "shiki": "^0.10.0",
-    "tsup": "^5.11.11",
+    "ts-node": "^10.4.0",
     "typescript": "^4.5.5",
     "windicss": "^3.4.3",
     "windicss-webpack-plugin": "^1.6.2"
