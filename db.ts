@@ -1,77 +1,116 @@
 import repl from 'repl';
+import fs from 'fs';
 
-enum PrepareStatementResult {
-  Success,
-  SyntaxError,
-  Unrecognized,
+const dbFile = './data.db';
+
+const map = new Map<string, Index>();
+const fd = fs.openSync(dbFile, 'a+');
+
+type Offset = number;
+type Size = number; // how many bytes
+type Index = [Offset, Size];
+
+const enum DataType {
+  Boolean,
+  Number,
+  String,
 }
 
-enum StatementType {
-  INSERT,
-  SELECT,
-}
+const get = (key: string) => {
+  const index = map.get(key);
 
-interface Statement {
-  type: StatementType;
-  cmd: string;
-}
+  if (index) {
+    const [offset, size] = index;
+    const buffer = Buffer.alloc(size);
+    fs.readSync(fd, buffer, 0, size, offset);
+    return deserialize(buffer);
+  }
 
-// type Row = [number, string, string];
+  return null;
+};
 
-function prepareStatement(cmd: string): {
-  stmt?: Statement;
-  result: PrepareStatementResult;
-} {
-  const firstWord = cmd.split(' ')[0].toLowerCase();
+const set = (key: string, value: string) => {
+  let buffer: Buffer;
+  if (value === 'true' || value === 'false') {
+    // boolean
+    buffer = serialize(JSON.parse(value));
+  } else if (/^-?\d+$/.test(value)) {
+    // number
+    buffer = serialize(parseFloat(value));
+  } else {
+    buffer = serialize(value);
+  }
 
-  if (firstWord === 'insert') {
-    if (!isLegalInsertStatement(cmd)) {
-      return { result: PrepareStatementResult.SyntaxError };
+  const size = buffer.byteLength;
+  const offset = fs.statSync(dbFile).size;
+  map.set(key, [offset, size]);
+  fs.appendFileSync(dbFile, buffer);
+};
+
+const deserialize = (buf: Buffer): boolean | number | string => {
+  const type = buf[0];
+
+  switch (type) {
+    case DataType.Boolean: {
+      return buf[1] === 1;
     }
-    return {
-      stmt: { type: StatementType.INSERT, cmd },
-      result: PrepareStatementResult.Success,
-    };
+    case DataType.Number: {
+      return buf.readDoubleBE(1);
+    }
+    case DataType.String: {
+      return buf.slice(1).toString();
+    }
+    default:
+      return buf.slice(1).toString();
+  }
+};
+
+const serialize = (val: boolean | number | string): Buffer => {
+  let buf: Buffer;
+  let type: Buffer;
+  let data: Buffer;
+
+  switch (typeof val) {
+    case 'boolean': {
+      type = Buffer.alloc(1, DataType.Boolean);
+      data = Buffer.alloc(1, val ? 1 : 0);
+      break;
+    }
+    case 'number': {
+      type = Buffer.alloc(1, DataType.Number);
+      data = Buffer.allocUnsafe(8);
+      data.writeDoubleBE(val);
+      break;
+    }
+    case 'string': {
+      type = Buffer.alloc(1, DataType.String);
+      data = Buffer.from(val);
+      break;
+    }
+    default: {
+      type = Buffer.alloc(1, DataType.String);
+      data = Buffer.from(val);
+    }
   }
 
-  if (cmd === 'select') {
-    return {
-      stmt: { type: StatementType.SELECT, cmd },
-      result: PrepareStatementResult.Success,
-    };
-  }
-
-  return { result: PrepareStatementResult.Unrecognized };
-}
-
-const InsertStatementRegex = /^insert\s+([1-9]\d*)\s+(\w+)\s+([a-z@.]+)$/i;
-
-function executeStatement(stmt: Statement): string {
-  switch (stmt.type) {
-    case StatementType.INSERT:
-      return 'This is where we would do an insert.\n';
-    case StatementType.SELECT:
-      return 'This is where we would do a select.\n';
-  }
-}
-
-function isLegalInsertStatement(cmd: string) {
-  return InsertStatementRegex.test(cmd);
-}
+  buf = Buffer.concat([type, data]);
+  return buf;
+};
 
 repl.start({
   prompt: 'db.js >> ',
-  eval: (evalCmd, context, filename, callback) => {
+  eval: async (evalCmd, _, __, callback) => {
     const cmd = evalCmd.trim();
-    const { stmt, result } = prepareStatement(cmd);
-
-    if (result === PrepareStatementResult.Unrecognized) {
-      callback(null, `Unrecognized keyword at start of '${cmd}'.\n`);
-    } else if (result === PrepareStatementResult.SyntaxError) {
-      callback(null, `Syntax error. Could not parse statement.\n`);
-    } else {
-      callback(null, executeStatement(stmt!));
+    if (cmd.startsWith('set')) {
+      const [, key, value] = cmd.split(' ');
+      set(key, value);
+      return callback(null, value);
     }
+    if (cmd.startsWith('get')) {
+      const [, key] = cmd.split(' ');
+      const value = get(key);
+      return callback(null, value);
+    }
+    return callback(null, `Unrecognized command.`);
   },
-  writer: output => output.trim(),
 });
