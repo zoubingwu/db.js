@@ -8,7 +8,9 @@ const imageRenderer: RenderRule = (tokens, index) => {
 
   let src = token.attrGet('src');
   if (process.env.NODE_ENV !== 'development') {
-    src = `https://cdn.jsdelivr.net/gh/zoubingwu/db.js/public/${src}`;
+    if (!src?.startsWith('http')) {
+      src = `https://cdn.jsdelivr.net/gh/zoubingwu/db.js/public/${src}`;
+    }
   }
 
   return `<img src="${src}" alt="${token.attrGet('alt')}"/>`;
