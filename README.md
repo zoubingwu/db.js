@@ -1,36 +1,12 @@
-# Let's Build a Simple Database
+# Build a Simple Database
 
-Writing a sqlite clone from scratch in TypeScript
+Writing a simple database from scratch with Node.js!
 
-## 数据库如何工作？
+## Usage
 
-- 数据以什么格式保存？（在内存和磁盘上）
-- 它什么时候从内存移动到磁盘？
-- 为什么每个表只能有一个主键？
-- 回滚事务如何工作？
-- 索引是如何格式化的？
-- 全表扫描何时以及如何发生？
-- 准备好的语句以什么格式保存？
+```shell
+pnpm install   # install dependencies
+pnpm start     # start db
 
-- 简而言之，数据库如何工作？
-
-为了理解，我们用 TypeSCript 从头开始构建sqlite的克隆，并且我将在进行过程中记录我的过程。
-
-##目录
-
-- 第 1 部分 - 介绍和设置 REPL
-- 第 2 部分 - 世界上最简单的 SQL 编译器和虚拟机
-- 第 3 部分 - 内存中的、仅追加的、单表数据库
-- 第 4 部分 - 我们的第一个测试（和错误）
-- 第 5 部分 - 磁盘持久性
-- 第 6 部分 - 游标抽象
-- 第 7 部分 - B 树简介
-- 第 8 部分 - B-Tree 叶节点格式
-- 第 9 部分 - 二进制搜索和重复键
-- 第 10 部分 - 拆分叶节点
-- 第 11 部分 - 递归搜索 B-Tree
-- 第 12 部分 - 扫描多级 B 树
-- 第 13 部分 - 拆分后更新父节点
-
-
-> “What I cannot create, I do not understand.” – Richard Feynman
+pnpm start:doc # start doc site
+```

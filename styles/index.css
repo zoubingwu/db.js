@@ -89,6 +89,7 @@ a:hover {
 .site-main-content img {
   display: block;
   margin: auto;
+  max-width: 100%;
 }
 
 .site-main-content :not(pre) code {
