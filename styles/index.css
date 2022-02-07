@@ -131,6 +131,7 @@ pre {
   position: relative;
   border-radius: 6px;
   box-shadow: inset 0 0 0 1px rgba(16, 22, 26, 0.15);
+  max-width: 580px;
 }
 
 pre.shiki {
