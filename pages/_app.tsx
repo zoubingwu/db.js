@@ -2,6 +2,7 @@ import 'windi.css';
 import React, { useState } from 'react';
 import type { AppProps } from 'next/app';
 import Head from 'next/head';
+import Script from 'next/script';
 
 import { ThemeContext } from '../components/Context';
 
@@ -21,6 +22,22 @@ function App({ Component, pageProps }: AppProps) {
         <meta name="viewport" content="initial-scale=1.0, width=device-width" />
       </Head>
       <Component {...pageProps} />
+      <Script
+        src="https://www.googletagmanager.com/gtag/js?id=G-KD1VDSWGQJ"
+        strategy="afterInteractive"
+      />
+      <Script
+        id="gtag-init"
+        strategy="afterInteractive"
+        dangerouslySetInnerHTML={{
+          __html: `
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+          
+            gtag('config', 'G-KD1VDSWGQJ');`,
+        }}
+      />
     </ThemeContext.Provider>
   );
 }
