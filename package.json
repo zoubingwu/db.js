@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "main": "db.ts",
   "scripts": {
-    "start": "ts-node db.ts",
+    "start": "ts-node db.ts ./data.db",
     "start:doc": "next dev",
     "build:doc": "next build",
     "fmt": "pretty-quick --pattern \"**/*.*(js|ts|tsx|md)\" --ignore-path .gitignore"
