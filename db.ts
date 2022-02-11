@@ -23,7 +23,7 @@ const enum CellType {
  * +----------------+---------------+-------------+
  */
 class PointerCell {
-  public readonly type = CellType.Pointer
+  public readonly type = CellType.Pointer;
   public keySize: number;
   public key: Buffer;
   public childPageId: number;
@@ -42,7 +42,7 @@ class PointerCell {
  * +--------------+----------------+------------------+-------------+----------------+
  */
 class KeyValueCell {
-  public readonly type = CellType.KeyValue
+  public readonly type = CellType.KeyValue;
   public keySize: number; // 2 bytes
   public key: Buffer;
   public valueSize: number;
@@ -52,13 +52,16 @@ class KeyValueCell {
     this.keySize = rawBuffer.readInt16BE(1);
     this.valueSize = rawBuffer.readInt16BE(5);
     this.key = rawBuffer.slice(9, 9 + this.keySize);
-    this.value = rawBuffer.slice(9 + this.keySize, 9 + this.keySize + this.valueSize);
+    this.value = rawBuffer.slice(
+      9 + this.keySize,
+      9 + this.keySize + this.valueSize
+    );
   }
 }
 
 class Pager {
   static getPageOffsetById(id: number) {
-    return id * PAGE_SIZE + FILE_HEADER_SIZE;
+    return (id - 1) * PAGE_SIZE + FILE_HEADER_SIZE;
   }
 
   private readonly fd: number;
@@ -67,10 +70,14 @@ class Pager {
     this.fd = fd;
   }
 
-  public getPageNodeById(id: number): BTreeNode {
+  public readPageNodeById(id: number): Buffer {
     const buf = Buffer.alloc(PAGE_SIZE);
     fs.readSync(this.fd, buf, 0, PAGE_SIZE, Pager.getPageOffsetById(id));
-    return new BTreeNode(buf, this);
+    return buf;
+  }
+
+  public writePageNodeById(id: number, buf: Buffer) {
+    fs.writeSync(this.fd, buf, 0, PAGE_SIZE, Pager.getPageOffsetById(id));
   }
 }
 
@@ -80,27 +87,47 @@ class BTree {
 
   constructor(pager: Pager) {
     this.pager = pager;
-    this.root = this.pager.getPageNodeById(0);
+    const buf = this.pager.readPageNodeById(1);
+    const node = new BTreeNode(1, buf, this.pager, null);
+    this.root = node.isEmptyNode() ? null : node;
   }
 
   public find(key: Buffer) {
-    if (this.root) {
-      return this.root.find(key);
-    }
-    return null;
+    return this.root ? this.root.find(key) : null;
   }
 
   public insert(key: Buffer, value: Buffer) {
-
+    if (!this.root) {
+      const node = BTreeNode.createEmptyNode(PageType.LEAF);
+      node.insert(key, value);
+    }
   }
 }
 
 const enum PageType {
-  LEAF= 0x0d,
+  EMPTY = 0x00,
+  LEAF = 0x0d,
   INTERNAL = 0x05,
 }
 
+/**
+ * header has fixed 12 bytes:
+ * 0                  1                  3                  5                        7                               8                        12
+ * +------------------+------------------+------------------+------------------------+-------------------------------+-------------------------+
+ * | [int] page_type  | [int] free_start | [int] cell_count |  [int] cell_area_start | [int] free_bytes_of_cell_area | [int] rightmost_pointer |
+ * +------------------+------------------+------------------+------------------------+-------------------------------+-------------------------+
+ *
+ */
 class BTreeNodeHeader {
+  public static readonly SIZE = 12;
+  public static readonly DEFAULT_FREE_START = 12;
+  public static createEmptyHeader(type: PageType): Buffer {
+    const buf = Buffer.alloc(BTreeNodeHeader.SIZE);
+    buf.writeInt8(type, 0);
+    buf.writeInt16BE(BTreeNodeHeader.DEFAULT_FREE_START, 1);
+    return buf;
+  }
+
   public pageType: PageType;
   public freeStart: number;
   public cellCount: number;
@@ -117,86 +144,121 @@ class BTreeNodeHeader {
     this.cellAreaStart = rawBuffer.readInt16BE(5);
     this.freeBytesOfCellArea = rawBuffer.readInt8(7);
     this.rightMostPointer = rawBuffer.readInt32BE(8);
-    this.length = rawBuffer.length
+    this.length = rawBuffer.length;
   }
 }
 
 /**
  * Page:
+ * 0       12            freeStart   cellAreaStart          4096
  * +--------+---------------+------------+-------------------+
  * | header | cell_pointers | free_space | cell_content_area |
  * +--------+---------------+------------+-------------------+
  *
- * header fixed 12 bytes:
- * 0                  1                  3                  5                        7                               8                        12
- * +------------------+------------------+------------------+------------------------+-------------------------------+-------------------------+
- * | [int] page_type  | [int] free_start | [int] cell_count |  [int] cell_area_start | [int] free_bytes_of_cell_area | [int] rightmost_pointer |
- * +------------------+------------------+------------------+------------------------+-------------------------------+-------------------------+
- *
- * cell pointers: array of 2 bytes integer offset
+ * cell pointers: array of 2 bytes integer indicates cell left offset
  */
 class BTreeNode {
-  private readonly pager: Pager
-  private pointerCells: PointerCell[] = [];
-  private keyValueCells: KeyValueCell[] = [];
-  private header: BTreeNodeHeader;
-
-  public get type() {
-    return this.header.pageType;
+  static createEmptyNode(type: PageType): BTreeNode {
+    const buf = Buffer.alloc(PAGE_SIZE);
+    const header = BTreeNodeHeader.createEmptyHeader(type);
+    header.copy(buf);
+    return;
   }
 
-  constructor(rawBuffer: Buffer, pager: Pager) {
+  private readonly pager: Pager;
+  private readonly cellOffsets: number[];
+  private readonly pointerCells: Map<number, PointerCell>;
+  private readonly keyValueCells: Map<number, KeyValueCell>;
+  private readonly header: BTreeNodeHeader;
+
+  private readonly id: number;
+  private readonly parentId: number | null;
+
+  private findChildNode(id: number): BTreeNode {
+    const buf = this.pager.readPageNodeById(id);
+    return new BTreeNode(id, buf, this.pager, this.id);
+  }
+
+  constructor(
+    id: number,
+    rawBuffer: Buffer,
+    pager: Pager,
+    parentId: number | null
+  ) {
     this.pager = pager;
-    this.header = new BTreeNodeHeader(rawBuffer.slice(0, 12));
+
+    this.header = new BTreeNodeHeader(rawBuffer.slice(0, BTreeNodeHeader.SIZE));
+    this.parentId = parentId;
+    this.id = id;
 
     let i = this.header.length;
-    const cellPointers: number[] = [];
+    const cellOffsets: number[] = [];
     while (i < this.header.freeStart) {
       const cellOffset = rawBuffer.readInt16BE(i);
-      cellPointers.push(cellOffset);
+      cellOffsets.push(cellOffset);
     }
-    for (let j = 0; j < cellPointers.length; j++) {
-      const start = cellPointers[j];
-      const end = j === cellPointers.length - 1 ? rawBuffer.length : cellPointers[j+1];
+    this.cellOffsets = cellOffsets;
+    this.cellOffsets.forEach((offset, index, array) => {
+      const start = offset;
+      const end =
+        index === array.length - 1 ? rawBuffer.length : array[index + 1];
       const cellBuffer = rawBuffer.slice(start, end);
-      if (this.type === PageType.INTERNAL) {
-        this.pointerCells.push(new PointerCell(cellBuffer));
-      } else if (this.type === PageType.LEAF) {
-        this.keyValueCells.push(new KeyValueCell(cellBuffer))
+      if (this.isInternalNode()) {
+        this.pointerCells.set(offset, new PointerCell(cellBuffer));
+      } else if (this.isLeafNode()) {
+        this.keyValueCells.set(offset, new KeyValueCell(cellBuffer));
       }
-    }
+    });
+  }
+
+  public isLeafNode() {
+    return this.header.pageType === PageType.LEAF;
+  }
+
+  public isInternalNode() {
+    return this.header.pageType === PageType.INTERNAL;
+  }
+
+  public isEmptyNode() {
+    return this.header.pageType === 0;
   }
 
   public find(key: Buffer): Buffer | null {
     // TODO use binary search
-    // the first separator key that is greater than the searched value
-    if (this.type === PageType.INTERNAL) {
-      const index = this.pointerCells.findIndex(cell => Buffer.compare(cell.key, key) === -1);
+    if (this.isInternalNode()) {
+      const index = this.cellOffsets.findIndex(
+        offset => Buffer.compare(this.pointerCells.get(offset).key, key) === -1
+      );
 
       if (index === -1) {
-        const rightMostPage = this.pager.getPageNodeById(this.header.rightMostPointer);
+        const id = this.header.rightMostPointer;
+        const rightMostPage = this.findChildNode(id);
         return rightMostPage.find(key);
       } else if (index === 0) {
-        return  null;
+        return null;
       } else {
-        const cell = this.pointerCells[index - 1];
-        const node = this.pager.getPageNodeById(cell.childPageId);
+        const cell = this.pointerCells.get(this.cellOffsets[index - 1]);
+        const node = this.findChildNode(cell.childPageId);
         return node.find(key);
       }
     }
 
-    if (this.type === PageType.LEAF) {
-      const index = this.keyValueCells.findIndex(cell => Buffer.compare(cell.key, key) === 0);
+    if (this.isLeafNode()) {
+      const index = this.cellOffsets.findIndex(
+        offset => Buffer.compare(this.keyValueCells.get(offset).key, key) === 0
+      );
       if (index === -1) {
         return null;
       } else {
-        const cell = this.keyValueCells[index];
+        const cell = this.keyValueCells.get(this.cellOffsets[index]);
         return cell.value;
       }
     }
 
     return null;
   }
+
+  public insert(key: Buffer, value: Buffer) {}
 }
 
 class Database {
@@ -312,9 +374,9 @@ function serialize(val: boolean | number | string): Buffer {
 }
 
 const dbFile = process.argv[2] || DEFAULT_DB_FILE;
-const database = new Database(dbFile);
+const db = new Database(dbFile);
 
-database.check();
+db.check();
 
 repl.start({
   prompt: 'db.js >> ',
@@ -322,12 +384,12 @@ repl.start({
     const cmd = evalCmd.trim();
     if (cmd.startsWith('set')) {
       const [, key, value] = cmd.split(' ');
-      database.set(key, value);
+      db.set(key, value);
       return callback(null, value);
     }
     if (cmd.startsWith('get')) {
       const [, key] = cmd.split(' ');
-      const value = database.get(key);
+      const value = db.get(key);
       return callback(null, value);
     }
     return callback(null, `Unrecognized command.`);
