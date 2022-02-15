@@ -14,19 +14,27 @@ export class PointerCell {
     return 8 + keySize;
   }
   public readonly type = CellType.Pointer;
-  public readonly keySize: number;
-  public readonly key: Buffer;
-  public readonly childPageId: number;
-  public readonly size: number;
+
+  public get keySize(): number {
+    return this.buffer.readInt32BE(0); // 4 bytes
+  }
+
+  public get key(): Buffer {
+    return this.buffer.slice(8, 8 + this.keySize);
+  }
+
+  public get childPageId(): number {
+    return this.buffer.readInt32BE(4); // 4 bytes
+  }
+
+  public get size(): number {
+    return this.buffer.length;
+  }
 
   public readonly buffer: Buffer;
 
   constructor(rawBuffer: Buffer) {
     this.buffer = rawBuffer;
-    this.keySize = rawBuffer.readInt32BE(0);
-    this.childPageId = rawBuffer.readInt32BE(4);
-    this.key = rawBuffer.slice(8, 8 + this.keySize);
-    this.size = rawBuffer.length;
   }
 }
 
@@ -51,23 +59,33 @@ export class KeyValueCell {
   }
 
   public readonly type = CellType.KeyValue;
-  public readonly keySize: number; // 2 bytes
-  public readonly key: Buffer;
-  public readonly valueSize: number;
-  public readonly value: Buffer;
-  public readonly size: number;
+
+  public get keySize(): number {
+    return this.buffer.readInt32BE(1); // 4 bytes
+  }
+
+  public get valueSize(): number {
+    return this.buffer.readInt32BE(5); // 4 bytes
+  }
+
+  public get key(): Buffer {
+    return this.buffer.slice(9, 9 + this.keySize);
+  }
+
+  public get value(): Buffer {
+    return this.buffer.slice(
+      9 + this.keySize,
+      9 + this.keySize + this.valueSize
+    );
+  }
+
+  public get size(): number {
+    return this.buffer.length;
+  }
 
   public readonly buffer: Buffer;
 
   constructor(rawBuffer: Buffer) {
     this.buffer = rawBuffer;
-    this.keySize = rawBuffer.readInt32BE(1);
-    this.valueSize = rawBuffer.readInt32BE(5);
-    this.key = rawBuffer.slice(9, 9 + this.keySize);
-    this.value = rawBuffer.slice(
-      9 + this.keySize,
-      9 + this.keySize + this.valueSize
-    );
-    this.size = rawBuffer.length;
   }
 }

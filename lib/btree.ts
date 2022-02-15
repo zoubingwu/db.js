@@ -12,6 +12,8 @@ export class BTree {
   private root: BTreeNode | null;
   private readonly pager: Pager;
 
+  private findLeafNodeByKey(key: Buffer) {}
+
   constructor(pager: Pager) {
     this.pager = pager;
     const buf = this.pager.readPageNodeById(1);
@@ -19,7 +21,7 @@ export class BTree {
     this.root = node.isEmptyNode() ? null : node;
   }
 
-  public find(key: Buffer) {
+  public find(key: Buffer): Buffer | null {
     return this.root ? this.root.find(key) : null;
   }
 
@@ -28,6 +30,7 @@ export class BTree {
       const [id, buf] = this.pager.allocNewPage();
       this.root = new BTreeNode(id, buf, this.pager, null);
       this.root.insert(key, value);
+      return;
     }
   }
 }
@@ -65,58 +68,80 @@ export class BTreeNode {
   }
 
   // header
-  public pageType: PageType;
-  private freeStart: number;
-  private cellCount: number;
-  private cellAreaStart: number;
-  // @ts-ignore
-  private freeBytesOfCellArea: number;
-  private rightMostPointer: number;
-
-  private readonly cellOffsets: number[] = [];
-  private readonly pager: Pager;
-  private readonly cells: Map<number, PointerCell | KeyValueCell> = new Map();
-
-  private readonly id: number;
-
-  // @ts-ignore
-  private readonly parentId: number | null;
-  private readonly buffer: Buffer;
-
-  private findChildNode(id: number): BTreeNode {
-    const buf = this.pager.readPageNodeById(id);
-    return new BTreeNode(id, buf, this.pager, this.id);
+  private get pageType(): PageType {
+    return this.buffer.readInt8(0);
   }
 
-  private setPageType(t: PageType) {
-    this.pageType = t;
+  private set pageType(t: PageType) {
     this.buffer.writeUInt8(t);
   }
 
-  private setFreeStart(n: number) {
-    this.freeStart = n;
+  private get freeStart(): number {
+    return this.buffer.readInt16BE(1);
+  }
+
+  private set freeStart(n: number) {
     this.buffer.writeUInt16BE(n, 1);
   }
 
-  private setCellCount(n: number) {
-    this.cellCount = n;
+  private get cellCount(): number {
+    return this.buffer.readInt16BE(3);
+  }
+
+  private set cellCount(n: number) {
     this.buffer.writeUInt16BE(n, 3);
   }
 
-  private setCellAreaStart(n: number) {
-    this.cellAreaStart = n;
+  private get cellAreaStart(): number {
+    return this.buffer.readInt16BE(5);
+  }
+
+  private set cellAreaStart(n: number) {
     this.buffer.writeUInt16BE(n, 5);
   }
 
-  private setCellOffsets() {
+  private get freeBytesOfCellArea(): number {
+    return this.buffer.readInt8(7);
+  }
+
+  private get rightMostPointer(): number {
+    return this.buffer.readInt32BE(8);
+  }
+
+  private get cellOffsets(): number[] {
+    let i = BTreeNode.HEADER_SIZE;
+    const buf = this.buffer;
+    const res = [];
+    while (i < this.freeStart) {
+      const offset = buf.readInt16BE(i);
+      res.push(offset);
+      i += 2;
+    }
+    return res;
+  }
+
+  private set cellOffsets(offsets: number[]) {
     const cellPointers = Buffer.concat(
-      this.cellOffsets.map(val => {
+      offsets.map(val => {
         const buf = Buffer.alloc(2);
         buf.writeInt16BE(val);
         return buf;
       })
     );
     cellPointers.copy(this.buffer, BTreeNode.HEADER_SIZE);
+  }
+
+  private readonly pager: Pager;
+  private readonly cells: Map<number, PointerCell | KeyValueCell> = new Map();
+
+  private readonly id: number;
+
+  private readonly parentId: number | null;
+  private readonly buffer: Buffer;
+
+  private findChildNode(id: number): BTreeNode {
+    const buf = this.pager.readPageNodeById(id);
+    return new BTreeNode(id, buf, this.pager, this.id);
   }
 
   private *traverseCell() {
@@ -141,27 +166,32 @@ export class BTreeNode {
   }
 
   private insertCell(cell: KeyValueCell | PointerCell) {
+    const currentCellOffsets = this.cellOffsets;
     const offset = this.cellAreaStart - cell.size;
     cell.buffer.copy(this.buffer, offset);
 
     const i = binaryFindFirstGreatorElement(
-      this.cellOffsets,
+      currentCellOffsets,
       cell.key,
       (a, b) => Buffer.compare(this.cells.get(a)!.key, b)
     );
 
     if (i === -1) {
-      this.cellOffsets.push(offset);
+      currentCellOffsets.push(offset);
     } else if (i === 0) {
-      this.cellOffsets.unshift(offset);
+      currentCellOffsets.unshift(offset);
     } else {
-      this.cellOffsets.splice(i, 1, offset);
+      currentCellOffsets.splice(i, 1, offset);
     }
     this.cells.set(offset, cell);
-    this.setCellOffsets();
-    this.setCellCount(this.cellCount + 1);
-    this.setFreeStart(this.freeStart + 2);
-    this.setCellAreaStart(offset);
+    this.cellOffsets = currentCellOffsets;
+    this.cellCount = this.cellCount + 1;
+    this.freeStart = this.freeStart + 2;
+    this.cellAreaStart = offset;
+  }
+
+  private persist() {
+    this.pager.writePageNodeById(this.id, this.buffer);
   }
 
   constructor(
@@ -173,18 +203,10 @@ export class BTreeNode {
     this.buffer = rawBuffer;
     this.pager = pager;
 
-    this.pageType = rawBuffer.readInt8(0);
-    this.freeStart = rawBuffer.readInt16BE(1);
-    this.cellCount = rawBuffer.readInt16BE(3);
-    this.cellAreaStart = rawBuffer.readInt16BE(5);
-    this.freeBytesOfCellArea = rawBuffer.readInt8(7);
-    this.rightMostPointer = rawBuffer.readInt32BE(8);
-
     this.parentId = parentId;
     this.id = id;
 
     for (const [offset, cell] of this.traverseCell()) {
-      this.cellOffsets.push(offset);
       this.cells.set(offset, cell);
     }
   }
@@ -202,12 +224,16 @@ export class BTreeNode {
   }
 
   public find(key: Buffer): Buffer | null {
-    if (this.cellOffsets.length === 0) {
+    const currentCellOffsets = this.cellOffsets;
+
+    if (currentCellOffsets.length === 0) {
       return null;
     }
 
-    const index = binaryFindFirstGreatorElement(this.cellOffsets, key, (a, b) =>
-      Buffer.compare(this.cells.get(a)!.key, b)
+    const index = binaryFindFirstGreatorElement(
+      currentCellOffsets,
+      key,
+      (a, b) => Buffer.compare(this.cells.get(a)!.key, b)
     );
 
     if (this.isInternalNode()) {
@@ -219,7 +245,7 @@ export class BTreeNode {
         return null;
       } else {
         const cell = this.cells.get(
-          this.cellOffsets[index - 1]
+          currentCellOffsets[index - 1]
         )! as PointerCell;
         const node = this.findChildNode(cell.childPageId);
         return node.find(key);
@@ -232,8 +258,8 @@ export class BTreeNode {
       } else {
         const cell = this.cells.get(
           index === -1
-            ? this.cellOffsets.at(-1)!
-            : this.cellOffsets.at(index - 1)!
+            ? currentCellOffsets.at(-1)!
+            : currentCellOffsets.at(index - 1)!
         )! as KeyValueCell;
         return Buffer.compare(key, cell.key) === 0 ? cell.value : null;
       }
@@ -244,10 +270,10 @@ export class BTreeNode {
 
   public insert(key: Buffer, value: Buffer) {
     if (this.isEmptyNode()) {
-      this.setPageType(PageType.LEAF);
+      this.pageType = PageType.LEAF;
       const cell = KeyValueCell.create(key, value);
       this.insertCell(cell);
-      this.pager.writePageNodeById(this.id, this.buffer);
+      this.persist();
       return;
     }
   }
