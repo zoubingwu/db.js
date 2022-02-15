@@ -31,7 +31,7 @@ export class Cursor {
 
     while (typeof nodeOrPointer === 'number') {
       const buf = this.pager.readPageById(nodeOrPointer);
-      startNode = new BTreeNode(nodeOrPointer, buf, startNode.id);
+      startNode = new BTreeNode(nodeOrPointer, buf);
       this.breadcrumbs.push(startNode.id);
       nodeOrPointer = startNode.findSubnode(key);
     }

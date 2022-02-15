@@ -63,6 +63,7 @@ export class BTreeNode {
   public static readonly HEADER_SIZE = 12;
   public static readonly DEFAULT_HEADER_FREE_START = 12;
   public static readonly DEFAULT_HEADER_CELL_START = PAGE_SIZE;
+  public static readonly CELL_POINTER_SIZE = 2;
 
   public static createEmptyHeader(): Buffer {
     const buf = Buffer.alloc(BTreeNode.HEADER_SIZE);
@@ -138,37 +139,56 @@ export class BTreeNode {
     cellPointers.copy(this.buffer, BTreeNode.HEADER_SIZE);
   }
 
-  private readonly cells: Map<number, PointerCell | KeyValueCell> = new Map();
-  public readonly id: number;
+  private getCellPointerByIndex(i: number): number | null {
+    const positionOfcellPointer =
+      BTreeNode.HEADER_SIZE + i * BTreeNode.CELL_POINTER_SIZE;
+    if (positionOfcellPointer < this.freeStart) {
+      return this.buffer.readInt16BE(positionOfcellPointer);
+    }
+    return null;
+  }
 
-  //@ts-ignore
-  private readonly parentId?: number;
+  private readCellByIndex(index: number): PointerCell | KeyValueCell | null {
+    const ptr = this.getCellPointerByIndex(index);
+    if (ptr !== null) {
+      const buf = this.buffer;
+      if (this.isInternalNode()) {
+        const keySize = buf.readInt32BE(ptr);
+        const size = PointerCell.calcSize(keySize);
+        const cellBuf = buf.slice(ptr, ptr + size);
+        return new PointerCell(cellBuf, ptr);
+      } else if (this.isLeafNode()) {
+        const keySize = buf.readInt32BE(ptr + 1);
+        const valueSize = buf.readInt32BE(ptr + 5);
+        const size = KeyValueCell.calcSize(keySize, valueSize);
+        const cellBuf = buf.slice(ptr, ptr + size);
+        return new KeyValueCell(cellBuf, ptr);
+      }
+    }
+    return null;
+  }
+
+  private readonly cells: Map<number, PointerCell | KeyValueCell> = new Map();
+
+  public readonly id: number;
   public readonly buffer: Buffer;
 
   private *traverseCell() {
-    let i = BTreeNode.HEADER_SIZE;
-    const buf = this.buffer;
-    while (i < this.freeStart) {
-      const cellOffset = buf.readInt16BE(i);
-      if (this.isInternalNode()) {
-        const keySize = buf.readInt32BE(cellOffset);
-        const size = PointerCell.calcSize(keySize);
-        const cellBuf = buf.slice(cellOffset, cellOffset + size);
-        yield [cellOffset, new PointerCell(cellBuf)] as const;
-      } else if (this.isLeafNode()) {
-        const keySize = buf.readInt32BE(cellOffset + 1);
-        const valueSize = buf.readInt32BE(cellOffset + 5);
-        const size = KeyValueCell.calcSize(keySize, valueSize);
-        const cellBuf = buf.slice(cellOffset, cellOffset + size);
-        yield [cellOffset, new KeyValueCell(cellBuf)] as const;
+    let i = 0;
+    while (true) {
+      const cell = this.readCellByIndex(i);
+      if (cell === null) {
+        break;
+      } else {
+        yield cell;
+        i++;
       }
-      i += 2;
     }
   }
 
   private insertCell(cell: KeyValueCell | PointerCell) {
     const currentCellOffsets = this.cellOffsets;
-    const offset = this.cellAreaStart - cell.size;
+    const offset = cell.offset;
     cell.buffer.copy(this.buffer, offset);
 
     const i = binaryFindFirstGreatorElement(
@@ -191,13 +211,12 @@ export class BTreeNode {
     this.cellAreaStart = offset;
   }
 
-  constructor(id: number, rawBuffer: Buffer, parentId?: number) {
+  constructor(id: number, rawBuffer: Buffer) {
     this.id = id;
     this.buffer = rawBuffer;
-    this.parentId = parentId;
 
-    for (const [offset, cell] of this.traverseCell()) {
-      this.cells.set(offset, cell);
+    for (const cell of this.traverseCell()) {
+      this.cells.set(cell.offset, cell);
     }
   }
 
@@ -278,7 +297,9 @@ export class BTreeNode {
   public insert(key: Buffer, value: Buffer) {
     if (this.isEmptyNode()) {
       this.pageType = PageType.LEAF;
-      const cell = KeyValueCell.create(key, value);
+      const size = KeyValueCell.calcSize(key.length, value.length);
+      const offset = this.cellAreaStart - size;
+      const cell = KeyValueCell.create(key, value, offset);
       this.insertCell(cell);
       return;
     }

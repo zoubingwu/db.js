@@ -32,9 +32,11 @@ export class PointerCell {
   }
 
   public readonly buffer: Buffer;
+  public readonly offset: number;
 
-  constructor(rawBuffer: Buffer) {
+  constructor(rawBuffer: Buffer, offset: number) {
     this.buffer = rawBuffer;
+    this.offset = offset;
   }
 }
 
@@ -49,12 +51,13 @@ export class KeyValueCell {
     return 9 + keySize + valueSize;
   }
 
-  static create(key: Buffer, value: Buffer): KeyValueCell {
+  static create(key: Buffer, value: Buffer, offset: number): KeyValueCell {
     const buf = Buffer.alloc(9);
     buf.writeInt32BE(key.length, 1);
     buf.writeInt32BE(value.length, 5);
     return new KeyValueCell(
-      Buffer.concat([buf, key, value], buf.length + key.length + value.length)
+      Buffer.concat([buf, key, value], buf.length + key.length + value.length),
+      offset
     );
   }
 
@@ -84,8 +87,10 @@ export class KeyValueCell {
   }
 
   public readonly buffer: Buffer;
+  public readonly offset: number;
 
-  constructor(rawBuffer: Buffer) {
+  constructor(rawBuffer: Buffer, offset: number) {
     this.buffer = rawBuffer;
+    this.offset = offset;
   }
 }
