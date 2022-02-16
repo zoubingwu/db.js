@@ -6,7 +6,7 @@ import Script from 'next/script';
 
 import { ThemeContext } from '../components/Context';
 
-import '../styles/index.css';
+import '../styles/index.scss';
 
 function App({ Component, pageProps }: AppProps) {
   const [darkMode, setDarkMode] = useState(false);
@@ -34,7 +34,7 @@ function App({ Component, pageProps }: AppProps) {
             window.dataLayer = window.dataLayer || [];
             function gtag(){dataLayer.push(arguments);}
             gtag('js', new Date());
-          
+
             gtag('config', 'G-KD1VDSWGQJ');`,
         }}
       />
