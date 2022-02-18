@@ -14,9 +14,13 @@ export class BTree {
   private readonly pager: Pager;
   private readonly cursor: Cursor;
 
-  constructor(pager: Pager) {
+  private persistNode(node: BTreeNode) {
+    this.pager.writePageById(node.id, node.buffer);
+  }
+
+  constructor(pager: Pager, cursor: Cursor) {
     this.pager = pager;
-    this.cursor = new Cursor(this.pager);
+    this.cursor = cursor;
     const node = this.cursor.getRoot();
     this.root = node.isEmptyNode() ? null : node;
   }
@@ -25,7 +29,7 @@ export class BTree {
     if (this.root) {
       this.cursor.reset();
       const node = this.cursor.findLeafNodeByKey(this.root, key);
-      return node?.findKeyValueCell(key)?.value ?? null;
+      return node.findKeyValueCell(key)?.value ?? null;
     }
     return null;
   }
@@ -34,9 +38,18 @@ export class BTree {
     if (!this.root) {
       const [id, buf] = this.pager.allocNewPage();
       this.root = new BTreeNode(id, buf);
-      this.root.insert(key, value);
-      this.pager.writePageById(this.root.id, this.root.buffer);
-      return;
+    }
+
+    this.cursor.reset();
+    let node = this.cursor.findLeafNodeByKey(this.root, key);
+
+    if (node.canHold(key, value)) {
+      node.insertKeyValueCell(key, value);
+      this.persistNode(node);
+    } else {
+      const [id, buf] = this.pager.allocNewPage();
+      const newNode = new BTreeNode(id, buf);
+      node.insertAndSplit(key, value, newNode, this.cursor);
     }
   }
 }
@@ -123,7 +136,7 @@ export class BTreeNode {
     while (i < this.freeStart) {
       const offset = buf.readInt16BE(i);
       res.push(offset);
-      i += 2;
+      i += BTreeNode.CELL_POINTER_SIZE;
     }
     return res;
   }
@@ -131,7 +144,7 @@ export class BTreeNode {
   private set cellOffsets(offsets: number[]) {
     const cellPointers = Buffer.concat(
       offsets.map(val => {
-        const buf = Buffer.alloc(2);
+        const buf = Buffer.alloc(BTreeNode.CELL_POINTER_SIZE);
         buf.writeInt16BE(val);
         return buf;
       })
@@ -207,7 +220,7 @@ export class BTreeNode {
     this.cells.set(offset, cell);
     this.cellOffsets = currentCellOffsets;
     this.cellCount = this.cellCount + 1;
-    this.freeStart = this.freeStart + 2;
+    this.freeStart = this.freeStart + BTreeNode.CELL_POINTER_SIZE;
     this.cellAreaStart = offset;
   }
 
@@ -232,17 +245,27 @@ export class BTreeNode {
     return this.pageType === PageType.INTERNAL;
   }
 
+  public firstKey() {
+    return this.readCellByIndex(0)?.key!;
+  }
+
+  public canHold(key: Buffer, value?: Buffer) {
+    const cellSize = value
+      ? KeyValueCell.calcSize(key.length, value.length)
+      : PointerCell.calcSize(key.length);
+    return (
+      this.cellAreaStart - this.freeStart >
+      BTreeNode.CELL_POINTER_SIZE + cellSize
+    );
+  }
+
   /**
    * @param key Buffer
    * @returns subtree or leaf node that contains key
    */
-  public findSubnode(key: Buffer): BTreeNode | number | null {
-    const currentCellOffsets = this.cellOffsets;
-    if (currentCellOffsets.length === 0) {
-      return null;
-    }
-
+  public findSubtreeOrLeaf(key: Buffer): BTreeNode | number {
     if (this.isInternalNode()) {
+      const currentCellOffsets = this.cellOffsets;
       const index = binaryFindFirstGreatorElement(
         currentCellOffsets,
         key,
@@ -250,22 +273,23 @@ export class BTreeNode {
       );
 
       if (index === -1) {
+        // the key is greator than last element
         return this.rightMostPointer;
       } else if (index === 0) {
-        return null;
+        // the key is lesser the first element
+        const cell = this.cells.get(currentCellOffsets[0])! as PointerCell;
+        return cell.childPageId;
       } else {
+        // the key is lesser than element at index, so we return the previous one of index
         const cell = this.cells.get(
           currentCellOffsets[index - 1]
         )! as PointerCell;
         return cell.childPageId;
       }
-    }
-
-    if (this.isLeafNode()) {
+    } else {
+      // is leaf node
       return this;
     }
-
-    return null;
   }
 
   public findKeyValueCell(key: Buffer): KeyValueCell | null {
@@ -294,18 +318,38 @@ export class BTreeNode {
     }
   }
 
-  public insert(key: Buffer, value: Buffer) {
+  public insertKeyValueCell(key: Buffer, value: Buffer) {
     if (this.isEmptyNode()) {
       this.pageType = PageType.LEAF;
-      const size = KeyValueCell.calcSize(key.length, value.length);
-      const offset = this.cellAreaStart - size;
-      const cell = KeyValueCell.create(key, value, offset);
-      this.insertCell(cell);
-      return;
     }
+    const size = KeyValueCell.calcSize(key.length, value.length);
+    const offset = this.cellAreaStart - size;
+    const cell = KeyValueCell.create(key, value, offset);
+    this.insertCell(cell);
   }
+
+  public insertPointerCell(key: Buffer, pointer: number) {
+    if (this.isEmptyNode()) {
+      this.pageType = PageType.INTERNAL;
+    }
+    const size = PointerCell.calcSize(key.length);
+    const offset = this.cellAreaStart - size;
+    const cell = PointerCell.create(key, pointer, offset);
+    this.insertCell(cell);
+  }
+
+  public insertAndSplut(
+    key: Buffer,
+    value: Buffer | null,
+    newNode: BTreeNode,
+    cursor: Cursor
+  ) {}
 }
 
+/**
+ * do binary search to find the first greator element
+ * @returns index of the first greator element
+ */
 export function binaryFindFirstGreatorElement<T, K>(
   array: T[],
   target: K,

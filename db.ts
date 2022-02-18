@@ -1,8 +1,7 @@
 import repl from 'repl';
 import process from 'process';
 
-import { DEFAULT_DB_FILE } from './lib/constant';
-import { Database } from './lib/database';
+import { Database, DEFAULT_DB_FILE } from './lib';
 
 const dbFile = process.argv[2] || DEFAULT_DB_FILE;
 const db = new Database(dbFile);

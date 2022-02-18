@@ -13,6 +13,17 @@ export class PointerCell {
   static calcSize(keySize: number) {
     return 8 + keySize;
   }
+
+  static create(key: Buffer, childPageId: number, offset: number): PointerCell {
+    const buf = Buffer.alloc(8);
+    buf.writeInt32BE(key.length, 0);
+    buf.writeInt32BE(childPageId, 4);
+    return new PointerCell(
+      Buffer.concat([buf, key], buf.length + key.length),
+      offset
+    );
+  }
+
   public readonly type = CellType.Pointer;
 
   public get keySize(): number {

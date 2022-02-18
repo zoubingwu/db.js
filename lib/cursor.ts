@@ -22,18 +22,15 @@ export class Cursor {
     return new BTreeNode(1, buf);
   }
 
-  public findLeafNodeByKey(
-    startNode: BTreeNode,
-    key: Buffer
-  ): BTreeNode | null {
+  public findLeafNodeByKey(startNode: BTreeNode, key: Buffer) {
     this.breadcrumbs.push(startNode.id);
-    let nodeOrPointer = startNode.findSubnode(key);
+    let nodeOrPointer = startNode.findSubtreeOrLeaf(key);
 
     while (typeof nodeOrPointer === 'number') {
       const buf = this.pager.readPageById(nodeOrPointer);
       startNode = new BTreeNode(nodeOrPointer, buf);
       this.breadcrumbs.push(startNode.id);
-      nodeOrPointer = startNode.findSubnode(key);
+      nodeOrPointer = startNode.findSubtreeOrLeaf(key);
     }
 
     return nodeOrPointer;

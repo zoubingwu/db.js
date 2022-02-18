@@ -1,17 +1,18 @@
 import fs from 'fs';
 import { Pager } from './pager';
 import { BTree } from './btree';
+import { Cursor } from './cursor';
 
 export class Database {
-  private readonly fd: number;
   private readonly btree: BTree;
   private readonly pager: Pager;
 
   constructor(filePath: string) {
     const isExist = fs.existsSync(filePath);
-    this.fd = fs.openSync(filePath, isExist ? 'r+' : 'w+');
-    this.pager = new Pager(this.fd);
-    this.btree = new BTree(this.pager);
+    const fd = fs.openSync(filePath, isExist ? 'r+' : 'w+');
+    this.pager = new Pager(fd);
+    const cursor = new Cursor(this.pager);
+    this.btree = new BTree(this.pager, cursor);
   }
 
   public open() {
@@ -23,16 +24,13 @@ export class Database {
   public set(key: string, value: string) {
     let buffer: Buffer;
     if (value === 'true' || value === 'false') {
-      // boolean
-      buffer = serialize(JSON.parse(value));
+      buffer = serialize(JSON.parse(value)); // boolean
     } else if (/^-?\d+$/.test(value)) {
-      // number
-      buffer = serialize(parseFloat(value));
+      buffer = serialize(parseFloat(value)); // number
     } else {
       buffer = serialize(value);
     }
     this.btree.insert(Buffer.from(key), buffer);
-
     return deserialize(buffer);
   }
 
