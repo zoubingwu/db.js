@@ -6,7 +6,9 @@
     "start": "ts-node db.ts ./data.db",
     "start:doc": "next dev",
     "build:doc": "next build",
-    "fmt": "pretty-quick --pattern \"**/*.*(js|ts|tsx|md)\" --ignore-path .gitignore"
+    "fmt": "pretty-quick --pattern \"**/*.*(js|ts|tsx|md)\" --ignore-path .gitignore",
+    "test": "vitest",
+    "test:watch": "vitest -w"
   },
   "devDependencies": {
     "@types/markdown-it": "^12.2.3",
@@ -27,6 +29,7 @@
     "shiki": "^0.10.0",
     "ts-node": "^10.4.0",
     "typescript": "^4.5.5",
+    "vitest": "^0.4.2",
     "windicss": "^3.4.3",
     "windicss-webpack-plugin": "^1.6.2"
   }
