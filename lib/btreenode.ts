@@ -49,31 +49,31 @@ export class BTreeNode {
   public readonly buffer: Buffer;
 
   // header
-  private get pageType(): PageType {
+  public get pageType(): PageType {
     return this.buffer.readInt8(0);
   }
 
-  private set pageType(t: PageType) {
+  public set pageType(t: PageType) {
     this.buffer.writeUInt8(t);
   }
 
-  private get freeStart(): number {
+  public get freeStart(): number {
     return this.buffer.readInt16BE(1);
   }
 
-  private set freeStart(n: number) {
+  public set freeStart(n: number) {
     this.buffer.writeUInt16BE(n, 1);
   }
 
-  private get cellAreaStart(): number {
+  public get cellAreaStart(): number {
     return this.buffer.readInt16BE(3);
   }
 
-  private set cellAreaStart(n: number) {
+  public set cellAreaStart(n: number) {
     this.buffer.writeUInt16BE(n, 3);
   }
 
-  private get cellOffsets(): number[] {
+  public get cellOffsets(): number[] {
     let i = BTreeNode.HEADER_SIZE;
     const buf = this.buffer;
     const res = [];
@@ -85,7 +85,7 @@ export class BTreeNode {
     return res;
   }
 
-  private set cellOffsets(offsets: number[]) {
+  public set cellOffsets(offsets: number[]) {
     const cellPointers = Buffer.concat(
       offsets.map(val => {
         const buf = Buffer.alloc(BTreeNode.CELL_POINTER_SIZE);

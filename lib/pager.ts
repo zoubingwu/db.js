@@ -26,7 +26,7 @@ class FileHeader {
     return new FileHeader(header);
   }
 
-  private readonly buffer: Buffer;
+  public readonly buffer: Buffer;
 
   constructor(buf: Buffer) {
     this.buffer = buf;
@@ -49,10 +49,6 @@ class FileHeader {
   public verify(): boolean {
     return this.buffer.slice(0, MAGIC_HEADER_SIZE).compare(MAGIC_HEADER) === 0;
   }
-
-  public saveToFile(fd: number) {
-    fs.writeSync(fd, this.buffer, 0, FILE_HEADER_SIZE, 0);
-  }
 }
 
 export class Pager {
@@ -60,8 +56,14 @@ export class Pager {
     return (id - 1) * PAGE_SIZE + FILE_HEADER_SIZE;
   }
 
-  private readonly fd: number;
+  private readonly fd: number; // -1 for in-memory storage
   private header: FileHeader | null = null;
+
+  private saveHeaderToFile() {
+    if (this.header) {
+      fs.writeSync(this.fd, this.header.buffer, 0, FILE_HEADER_SIZE, 0);
+    }
+  }
 
   constructor(fd: number) {
     this.fd = fd;
@@ -80,7 +82,7 @@ export class Pager {
     const header = BTreeNode.createEmptyHeader();
     header.copy(buf);
     const id = this.header.maxPageId + 1;
-    this.header.saveToFile(this.fd);
+    this.saveHeaderToFile();
     this.writePageById(id, buf);
     return [id, buf];
   }
@@ -94,7 +96,7 @@ export class Pager {
     const isEmpty = fs.fstatSync(this.fd).size === 0;
     if (isEmpty) {
       this.header = FileHeader.create();
-      this.header.saveToFile(this.fd);
+      this.saveHeaderToFile();
     } else {
       const header = Buffer.alloc(FILE_HEADER_SIZE);
       fs.readSync(this.fd, header, 0, FILE_HEADER_SIZE, 0);
@@ -118,7 +120,7 @@ export class Pager {
    */
   public setRootPage(id: number, buf: Buffer) {
     this.header!.rootPageId = id;
-    this.header!.saveToFile(this.fd);
+    this.saveHeaderToFile();
   }
 
   public readPageById(id: number): Buffer {
