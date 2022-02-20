@@ -4,24 +4,29 @@ import { BTree } from './btree';
 import { Cursor } from './cursor';
 
 export class Database {
-  private readonly btree: BTree;
+  private readonly filePath: string;
   private readonly pager: Pager;
+  private btree: BTree | null = null;
 
   constructor(filePath: string) {
-    const isExist = fs.existsSync(filePath);
-    const fd = fs.openSync(filePath, isExist ? 'r+' : 'w+');
+    this.filePath = filePath;
+    const isExist = fs.existsSync(this.filePath);
+    const fd = fs.openSync(this.filePath, isExist ? 'r+' : 'w+');
     this.pager = new Pager(fd);
-    const cursor = new Cursor(this.pager);
-    this.btree = new BTree(this.pager, cursor);
   }
 
   public open() {
     if (!this.pager.verifyFileHeader()) {
       throw new Error('This is not a simple db file!');
     }
+    const cursor = new Cursor(this.pager);
+    this.btree = new BTree(this.pager, cursor);
   }
 
   public set(key: string, value: string) {
+    if (!this.btree) {
+      throw new Error('call open db first!');
+    }
     let buffer: Buffer;
     if (value === 'true' || value === 'false') {
       buffer = serialize(JSON.parse(value)); // boolean
@@ -35,6 +40,9 @@ export class Database {
   }
 
   public get(key: string) {
+    if (!this.btree) {
+      throw new Error('call open db first!');
+    }
     const buf = this.btree.find(Buffer.from(key));
     return buf ? deserialize(buf) : null;
   }

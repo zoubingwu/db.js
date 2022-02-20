@@ -1,10 +1,15 @@
-import { BTreeNode } from './btree';
+import { BTreeNode } from './btreenode';
 import { Pager } from './pager';
 
 export class Cursor {
   private breadcrumbs: number[] = [];
+  private index: number = -1;
   private readonly pager: Pager;
-  private root?: BTreeNode;
+
+  private addBreadcrumbs(b: number) {
+    this.breadcrumbs.push(b);
+    this.index++;
+  }
 
   constructor(pager: Pager) {
     this.pager = pager;
@@ -14,25 +19,36 @@ export class Cursor {
     this.breadcrumbs = [];
   }
 
-  public getRoot(): BTreeNode {
-    if (this.root) {
-      return this.root;
+  public getRoot(): BTreeNode | null {
+    const [id, buf] = this.pager.readRootPage();
+    if (!buf) {
+      return null;
     }
-    const buf = this.pager.readPageById(1);
-    return new BTreeNode(1, buf);
+    return new BTreeNode(id, buf);
   }
 
   public findLeafNodeByKey(startNode: BTreeNode, key: Buffer) {
-    this.breadcrumbs.push(startNode.id);
+    this.addBreadcrumbs(startNode.id);
     let nodeOrPointer = startNode.findSubtreeOrLeaf(key);
 
     while (typeof nodeOrPointer === 'number') {
       const buf = this.pager.readPageById(nodeOrPointer);
       startNode = new BTreeNode(nodeOrPointer, buf);
-      this.breadcrumbs.push(startNode.id);
+      this.addBreadcrumbs(startNode.id);
       nodeOrPointer = startNode.findSubtreeOrLeaf(key);
     }
 
     return nodeOrPointer;
+  }
+
+  public prev() {
+    const id = this.breadcrumbs.at(this.index - 1);
+    if (typeof id === 'undefined') {
+      return null;
+    } else {
+      const buf = this.pager.readPageById(id);
+      this.index--;
+      return new BTreeNode(id, buf);
+    }
   }
 }

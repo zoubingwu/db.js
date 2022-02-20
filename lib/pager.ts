@@ -1,6 +1,6 @@
 import fs from 'fs';
 
-import { BTreeNode } from './btree';
+import { BTreeNode } from './btreenode';
 import {
   PAGE_SIZE,
   FILE_HEADER_SIZE,
@@ -11,17 +11,18 @@ import {
 /**
  * file header, FIXED 100 bytes:
  *
- * 0                     19          21            23            100
- * +---------------------+-----------+-------------+--------------+
- * | magic_header_string | page_size | max_page_id | unused_space |
- * +---------------------+-----------+-------------+--------------+
+ * 0                             19                21                  25                    29            100
+ * +------------------------------+-----------------+-------------------+--------------------+--------------+
+ * | [buffer] magic_header_string | [int] page_size | [int] max_page_id | [int] root_page_id | unused_space |
+ * +------------------------------+-----------------+-------------------+--------------------+--------------+
  */
 class FileHeader {
   public static create(): FileHeader {
     const header = Buffer.alloc(FILE_HEADER_SIZE);
     MAGIC_HEADER.copy(header); // magic header 19 bytes
     header.writeInt16BE(PAGE_SIZE, MAGIC_HEADER_SIZE); // page size 2 bytes
-    header.writeInt32BE(0, MAGIC_HEADER_SIZE + 2); // max page id 4 bytes
+    header.writeInt32BE(0, 21); // max page id, 4 bytes
+    header.writeInt32BE(0, 25); // root page id, 4 bytes
     return new FileHeader(header);
   }
 
@@ -32,9 +33,17 @@ class FileHeader {
   }
 
   public get maxPageId(): number {
-    const curr = this.buffer.readInt32BE(MAGIC_HEADER_SIZE + 2);
-    this.buffer.writeInt32BE(curr + 1, MAGIC_HEADER_SIZE + 2);
+    const curr = this.buffer.readInt32BE(21);
+    this.buffer.writeInt32BE(curr + 1, 21);
     return curr;
+  }
+
+  public get rootPageId(): number {
+    return this.buffer.readInt32BE(25);
+  }
+
+  public set rootPageId(n: number) {
+    this.buffer.writeInt32BE(n, 25);
   }
 
   public verify(): boolean {
@@ -59,7 +68,8 @@ export class Pager {
   }
 
   /**
-   * alloc an empty page and will increase max page id in header
+   * Alloc an empty page and will increase max page id in header.
+   * This will write to disk to save file header and empty page
    * @returns [id, buffer] as tuple
    */
   public allocNewPage(): [number, Buffer] {
@@ -75,6 +85,11 @@ export class Pager {
     return [id, buf];
   }
 
+  /**
+   * Check header is legal.
+   * This will write to disk to save newly created file header if file is empty.
+   * @returns boolean
+   */
   public verifyFileHeader(): boolean {
     const isEmpty = fs.fstatSync(this.fd).size === 0;
     if (isEmpty) {
@@ -86,6 +101,24 @@ export class Pager {
       this.header = new FileHeader(header);
     }
     return this.header.verify();
+  }
+
+  public readRootPage(): [number, Buffer | null] {
+    const id = this.header!.rootPageId;
+    if (id === 0) {
+      return [0, null];
+    }
+    return [id, this.readPageById(id)];
+  }
+
+  /**
+   * This will write to disk to update header
+   * @param id
+   * @param buf
+   */
+  public setRootPage(id: number, buf: Buffer) {
+    this.header!.rootPageId = id;
+    this.header!.saveToFile(this.fd);
   }
 
   public readPageById(id: number): Buffer {
