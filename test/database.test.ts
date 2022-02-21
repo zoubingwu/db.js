@@ -47,7 +47,7 @@ test('deserialize', () => {
 
 describe('Database', () => {
   let db: Database;
-  let badFile = './test/fixture/bad.db';
+  let badFile = './test/fixture/bad.db.snap';
   let file = './test/fixture/good.db';
 
   const bad = new Database(badFile);
