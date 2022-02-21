@@ -16,7 +16,7 @@ import {
  * | [buffer] magic_header_string | [int] page_size | [int] max_page_id | [int] root_page_id | unused_space |
  * +------------------------------+-----------------+-------------------+--------------------+--------------+
  */
-class FileHeader {
+export class FileHeader {
   public static create(): FileHeader {
     const header = Buffer.alloc(FILE_HEADER_SIZE);
     MAGIC_HEADER.copy(header); // magic header 19 bytes
@@ -52,7 +52,7 @@ class FileHeader {
 }
 
 export class Pager {
-  static getPageOffsetById(id: number) {
+  public static getPageOffsetById(id: number) {
     return (id - 1) * PAGE_SIZE + FILE_HEADER_SIZE;
   }
 
@@ -106,7 +106,10 @@ export class Pager {
   }
 
   public readRootPage(): [number, Buffer | null] {
-    const id = this.header!.rootPageId;
+    if (!this.header) {
+      throw new Error('file header not initialized');
+    }
+    const id = this.header.rootPageId;
     if (id === 0) {
       return [0, null];
     }

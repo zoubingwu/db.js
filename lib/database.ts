@@ -25,7 +25,7 @@ export class Database {
 
   public set(key: string, value: string) {
     if (!this.btree) {
-      throw new Error('call open db first!');
+      throw new Error('call `db.open` first!');
     }
     let buffer: Buffer;
     if (value === 'true' || value === 'false') {
@@ -41,14 +41,14 @@ export class Database {
 
   public get(key: string) {
     if (!this.btree) {
-      throw new Error('call open db first!');
+      throw new Error('call `db.open` first!');
     }
     const buf = this.btree.find(Buffer.from(key));
     return buf ? deserialize(buf) : null;
   }
 }
 
-const enum DataType {
+export const enum DataType {
   Boolean,
   Number,
   String,
@@ -63,9 +63,6 @@ export function deserialize(buf: Buffer): boolean | number | string {
     }
     case DataType.Number: {
       return buf.readDoubleBE(1);
-    }
-    case DataType.String: {
-      return buf.slice(1).toString();
     }
     default:
       return buf.slice(1).toString();
@@ -87,11 +84,6 @@ export function serialize(val: boolean | number | string): Buffer {
       type = Buffer.alloc(1, DataType.Number);
       data = Buffer.alloc(8);
       data.writeDoubleBE(val);
-      break;
-    }
-    case 'string': {
-      type = Buffer.alloc(1, DataType.String);
-      data = Buffer.from(val);
       break;
     }
     default: {

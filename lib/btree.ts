@@ -7,7 +7,7 @@ export class BTree {
   public readonly pager: Pager;
   public readonly cursor: Cursor;
 
-  private saveNodeToFile(node: BTreeNode) {
+  public saveNodeToFile(node: BTreeNode) {
     this.pager.writePageById(node.id, node.buffer);
   }
 
@@ -22,7 +22,8 @@ export class BTree {
     const newRoot = new BTreeNode(id, buf);
     newRoot.insertPointerCell(this.root!.lastKey(), this.root!.id);
     newRoot.insertPointerCell(newChildNode.firstKey(), newChildNode.id);
-    this.pager.writePageById(id, buf);
+    this.root = newRoot;
+    this.saveNodeToFile(newRoot);
     this.pager.setRootPage(id, newRoot.buffer);
   }
 
@@ -46,9 +47,9 @@ export class BTree {
     let node = this.cursor.findLeafNodeByKey(this.root, key);
     if (node.canHold(key, value)) {
       node.insertKeyValueCell(key, value);
+      this.saveNodeToFile(node);
     } else {
       node.splitAndInsert(key, value, this);
     }
-    this.saveNodeToFile(node);
   }
 }

@@ -19,7 +19,7 @@ specifiers:
   shiki: ^0.10.0
   ts-node: ^10.4.0
   typescript: ^4.5.5
-  vitest: ^0.4.2
+  vitest: ^0.5.0
   windicss: ^3.4.3
   windicss-webpack-plugin: ^1.6.2
 
@@ -42,7 +42,7 @@ devDependencies:
   shiki: 0.10.0
   ts-node: 10.4.0_9d6cd740eceb93d711351e2e9548d1bd
   typescript: 4.5.5
-  vitest: 0.4.2_sass@1.49.7
+  vitest: 0.5.0_sass@1.49.7
   windicss: 3.4.3
   windicss-webpack-plugin: 1.6.2
 
@@ -2195,10 +2195,10 @@ packages:
       fsevents: 2.3.2
     dev: true
 
-  /vitest/0.4.2_sass@1.49.7:
+  /vitest/0.5.0_sass@1.49.7:
     resolution:
       {
-        integrity: sha512-f5kclFhkCuIKQ96lsAveESeyfTf9ihT79ZQcLDNCoJbMDNTHQdSMnU7aq9KAeOmZVh4la3NANKWECWM7HfP1ng==,
+        integrity: sha512-vgEej0Tl0VHztDKFQlC8wItPoszUMjac9rgHyw2uIZv9DK+4NMckxfnvhBHOvsnZXxWHOvk2sXmy80e95c820A==,
       }
     engines: { node: '>=14.14.0' }
     hasBin: true

@@ -10,11 +10,15 @@ export const enum CellType {
  * +----------------+---------------+-------------+
  */
 export class PointerCell {
-  static calcSize(keySize: number) {
+  public static calcSize(keySize: number) {
     return 8 + keySize;
   }
 
-  static create(key: Buffer, childPageId: number, offset: number): PointerCell {
+  public static create(
+    key: Buffer,
+    childPageId: number,
+    offset: number
+  ): PointerCell {
     const buf = Buffer.alloc(8);
     buf.writeInt32BE(key.length, 0);
     buf.writeInt32BE(childPageId, 4);
@@ -58,11 +62,15 @@ export class PointerCell {
  * +--------------+----------------+------------------+-------------+----------------+
  */
 export class KeyValueCell {
-  static calcSize(keySize: number, valueSize: number) {
+  public static calcSize(keySize: number, valueSize: number) {
     return 9 + keySize + valueSize;
   }
 
-  static create(key: Buffer, value: Buffer, offset: number): KeyValueCell {
+  public static create(
+    key: Buffer,
+    value: Buffer,
+    offset: number
+  ): KeyValueCell {
     const buf = Buffer.alloc(9);
     buf.writeInt32BE(key.length, 1);
     buf.writeInt32BE(value.length, 5);

@@ -49,31 +49,31 @@ export class BTreeNode {
   public readonly buffer: Buffer;
 
   // header
-  public get pageType(): PageType {
+  private get pageType(): PageType {
     return this.buffer.readInt8(0);
   }
 
-  public set pageType(t: PageType) {
+  private set pageType(t: PageType) {
     this.buffer.writeUInt8(t);
   }
 
-  public get freeStart(): number {
+  private get freeStart(): number {
     return this.buffer.readInt16BE(1);
   }
 
-  public set freeStart(n: number) {
+  private set freeStart(n: number) {
     this.buffer.writeUInt16BE(n, 1);
   }
 
-  public get cellAreaStart(): number {
+  private get cellAreaStart(): number {
     return this.buffer.readInt16BE(3);
   }
 
-  public set cellAreaStart(n: number) {
+  private set cellAreaStart(n: number) {
     this.buffer.writeUInt16BE(n, 3);
   }
 
-  public get cellOffsets(): number[] {
+  private get cellOffsets(): number[] {
     let i = BTreeNode.HEADER_SIZE;
     const buf = this.buffer;
     const res = [];
@@ -85,7 +85,7 @@ export class BTreeNode {
     return res;
   }
 
-  public set cellOffsets(offsets: number[]) {
+  private set cellOffsets(offsets: number[]) {
     const cellPointers = Buffer.concat(
       offsets.map(val => {
         const buf = Buffer.alloc(BTreeNode.CELL_POINTER_SIZE);
@@ -147,10 +147,6 @@ export class BTreeNode {
     return null;
   }
 
-  private prependCell(cell: PointerCell | KeyValueCell) {
-    cell.buffer.copy(this.buffer, this.cellAreaStart - cell.size);
-  }
-
   private insertCell(cell: KeyValueCell | PointerCell) {
     const currentCellOffsets = this.cellOffsets;
     const offset = cell.offset;
@@ -172,13 +168,13 @@ export class BTreeNode {
     } else {
       const c = this.readCellByIndex(i - 1);
       if (c && BTreeNode.isEqualKey(c.key, cell.key)) {
-        currentCellOffsets.splice(i - 1, 1, offset);
+        currentCellOffsets.splice(i - 1, 1, offset); // replace it if it was equal
       } else {
-        currentCellOffsets.splice(i - 1, 0, offset);
+        currentCellOffsets.splice(i, 0, offset); // otherwise put it after i - 1 position
       }
     }
 
-    this.prependCell(cell);
+    cell.buffer.copy(this.buffer, this.cellAreaStart - cell.size);
     this.cellOffsets = currentCellOffsets;
     this.freeStart = this.freeStart + BTreeNode.CELL_POINTER_SIZE;
     this.cellAreaStart = offset;
@@ -210,6 +206,18 @@ export class BTreeNode {
     return this.readCellByIndex(cellOffsets.length - 1)?.key!;
   }
 
+  public keys() {
+    return this.cellOffsets.map(p => this.readCellByPointer(p)!.key);
+  }
+
+  public keyAt(n: number) {
+    return this.readCellByIndex(n)?.key ?? null;
+  }
+
+  public keyCount(): number {
+    return this.cellOffsets.length;
+  }
+
   public canHold(key: Buffer, value: Buffer | null) {
     const cellSize = value
       ? KeyValueCell.calcSize(key.length, value.length)
@@ -236,14 +244,14 @@ export class BTreeNode {
 
       let cell: PointerCell;
       if (index === -1) {
-        // the key is greator than last element
+        // the key is greator than or equal to last element
         cell = this.readCellByIndex(-1)! as PointerCell;
       } else if (index === 0) {
         // the key is lesser the first element
         cell = this.readCellByIndex(0)! as PointerCell;
       } else {
         // the key is lesser than element at index, so we return the previous one of index
-        cell = this.readCellByPointer(index - 1)! as PointerCell;
+        cell = this.readCellByIndex(index - 1)! as PointerCell;
       }
       return cell.childPageId;
     } else if (this.isEmptyNode()) {
@@ -304,19 +312,6 @@ export class BTreeNode {
     const newNode = new BTreeNode(id, buffer);
     const ptrs = this.cellOffsets;
 
-    // Only keep formar half of cells in current node
-    const formerHalfOfPtrs = ptrs.slice(0, Math.floor(ptrs.length / 2));
-    const buf = Buffer.concat(
-      formerHalfOfPtrs.map(p => this.readCellByIndex(p)!.buffer)
-    );
-    this.buffer.fill(0, this.cellAreaStart, BTreeNode.CELL_AREA_END); // reset all cells
-    buf.copy(this.buffer, BTreeNode.DEFAULT_CELL_START - buf.length);
-    this.cellOffsets = formerHalfOfPtrs;
-    this.freeStart =
-      BTreeNode.DEFAULT_FREE_START +
-      BTreeNode.CELL_POINTER_SIZE * formerHalfOfPtrs.length;
-    this.cellAreaStart = BTreeNode.DEFAULT_CELL_START - buf.length;
-
     // Copy latter half of cells to new node
     const latterHalfOfPtrs = ptrs.slice(Math.floor(ptrs.length / 2));
     for (const p of latterHalfOfPtrs) {
@@ -328,6 +323,19 @@ export class BTreeNode {
         newNode.insertKeyValueCell(cell.key, cell.value);
       }
     }
+
+    // Only keep former half of cells in current node, this will reset buffer
+    const formerHalfOfPtrs = ptrs.slice(0, Math.floor(ptrs.length / 2));
+    const buf = Buffer.concat(
+      formerHalfOfPtrs.map(p => this.readCellByPointer(p)!.buffer)
+    );
+    this.buffer.fill(0, this.cellAreaStart, BTreeNode.CELL_AREA_END); // reset all cells
+    buf.copy(this.buffer, BTreeNode.DEFAULT_CELL_START - buf.length);
+    this.cellOffsets = formerHalfOfPtrs;
+    this.freeStart =
+      BTreeNode.DEFAULT_FREE_START +
+      BTreeNode.CELL_POINTER_SIZE * formerHalfOfPtrs.length;
+    this.cellAreaStart = BTreeNode.DEFAULT_CELL_START - buf.length;
 
     // Place the new element into the corresponding node.
     if (Buffer.compare(key, newNode.firstKey()) === -1) {
@@ -349,9 +357,17 @@ export class BTreeNode {
     if (!parent) {
       // it indicates current node is root node
       btree.createRootAndIncreaseHeight(newNode);
+      btree.saveNodeToFile(this);
+      btree.saveNodeToFile(newNode);
     } else if (parent.canHold(newNode.firstKey(), null)) {
       // parent node can hold pointer to new node
       parent.insertPointerCell(newNode.firstKey(), newNode.id);
+      btree.saveNodeToFile(parent);
+      btree.saveNodeToFile(this);
+      btree.saveNodeToFile(newNode);
+      if (parent.id === btree.root?.id) {
+        btree.root = parent;
+      }
     } else {
       // parent node does not have enough space to hold pointer to new node
       // should keep split and propagate

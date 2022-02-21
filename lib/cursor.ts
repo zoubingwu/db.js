@@ -17,6 +17,7 @@ export class Cursor {
 
   public reset() {
     this.breadcrumbs = [];
+    this.index = -1;
   }
 
   public getRoot(): BTreeNode | null {
@@ -41,8 +42,18 @@ export class Cursor {
     return nodeOrPointer;
   }
 
+  /**
+   * This returns a new Node, be careful!
+   * @returns [id, buffer]
+   */
   public prev() {
+    if (this.index === 0) {
+      // currently pointing to the root node
+      return null;
+    }
+
     const id = this.breadcrumbs.at(this.index - 1);
+
     if (typeof id === 'undefined') {
       return null;
     } else {
