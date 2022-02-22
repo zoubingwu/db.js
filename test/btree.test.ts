@@ -57,7 +57,7 @@ describe('BTree', () => {
     expect(deserialize(btree.find(Buffer.from('d'))!)).toBe(4);
   });
 
-  test.only('page split', () => {
+  test('page split', () => {
     btree.insert(Buffer.from('a'), Buffer.from('1'.repeat(2000)));
     btree.insert(Buffer.from('b'), Buffer.from('2'.repeat(2000)));
     expect(btree.root).toBeTruthy();
