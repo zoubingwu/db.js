@@ -3,7 +3,7 @@ import React from 'react';
 const Page: React.FC<{ content: string }> = ({ content }) => {
   return (
     <main
-      className="site-main-content flex-1 p-60px"
+      className="site-main-content"
       dangerouslySetInnerHTML={{ __html: content }}
     />
   );

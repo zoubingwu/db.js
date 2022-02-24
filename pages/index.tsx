@@ -1,25 +1,23 @@
-import React from 'react';
 import path from 'path';
 import { GetStaticProps } from 'next';
 
-import Page from '../components/Page';
 import markdown from '../utils/markdown';
 import readDocs from '../utils/sider';
-import Layout from '../components/Layout';
+import Post from '../components/Post';
 
 export const getStaticProps: GetStaticProps = async () => {
+  const navs = await readDocs();
+  const prev = null;
+  const next = navs[1];
+  const content = await markdown(path.resolve(process.cwd(), 'docs', `1.md`));
   return {
     props: {
-      content: await markdown(path.resolve(process.cwd(), 'docs', '1.md')),
-      navs: await readDocs(),
+      content,
+      prev,
+      next,
+      navs,
     },
   };
 };
 
-export default function (props: any) {
-  return (
-    <Layout navs={props.navs}>
-      <Page content={props.content} />
-    </Layout>
-  );
-}
+export default Post;

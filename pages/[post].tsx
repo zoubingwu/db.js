@@ -1,12 +1,10 @@
-import React from 'react';
 import path from 'path';
 import fs from 'fs';
 import { GetStaticProps } from 'next';
 
-import Page from '../components/Page';
 import markdown from '../utils/markdown';
-import Layout from '../components/Layout';
 import readDocs from '../utils/sider';
+import Post from '../components/Post';
 
 export async function getStaticPaths() {
   const paths = fs
@@ -23,20 +21,21 @@ export async function getStaticPaths() {
 }
 
 export const getStaticProps: GetStaticProps = async context => {
+  const navs = await readDocs();
+  const postId = parseInt(context.params?.post as string);
+  const prev = navs[postId - 2] ?? null;
+  const next = navs[postId] ?? null;
+  const content = await markdown(
+    path.resolve(process.cwd(), 'docs', `${context.params?.post}.md`)
+  );
   return {
     props: {
-      content: await markdown(
-        path.resolve(process.cwd(), 'docs', `${context.params?.post}.md`)
-      ),
-      navs: await readDocs(),
+      content,
+      prev,
+      next,
+      navs,
     },
   };
 };
 
-export default function (props: any) {
-  return (
-    <Layout navs={props.navs}>
-      <Page content={props.content} />
-    </Layout>
-  );
-}
+export default Post;
