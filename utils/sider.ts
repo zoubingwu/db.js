@@ -18,7 +18,12 @@ async function getFirstLine(pathToFile: string) {
 const readDocs = async () => {
   const docs = fs
     .readdirSync(path.resolve(process.cwd(), 'docs'))
-    .filter(p => p.endsWith('.md'));
+    .filter(p => p.endsWith('.md'))
+    .sort(
+      (a, b) =>
+        parseInt(path.basename(a, '.md')) - parseInt(path.basename(b, '.md'))
+    );
+
   return Promise.all(
     docs.map(p =>
       getFirstLine(path.resolve(process.cwd(), 'docs', p)).then(
