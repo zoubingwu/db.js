@@ -125,7 +125,7 @@ export class BTreeNode {
 
   private readCellByKey(key: Buffer) {
     const currentCellOffsets = this.cellOffsets;
-    let i = binaryFindFirstGreatorElement(currentCellOffsets, key, (a, b) =>
+    let i = findIndexOfFirstGreatorElement(currentCellOffsets, key, (a, b) =>
       Buffer.compare(this.readCellByPointer(a)!.key, b)
     );
 
@@ -151,7 +151,7 @@ export class BTreeNode {
     const currentCellOffsets = this.cellOffsets;
     const offset = cell.offset;
 
-    const i = binaryFindFirstGreatorElement(
+    const i = findIndexOfFirstGreatorElement(
       currentCellOffsets,
       cell.key,
       (a, b) => Buffer.compare(this.readCellByPointer(a)!.key, b)
@@ -236,7 +236,7 @@ export class BTreeNode {
   public findSubtreeOrLeaf(key: Buffer): BTreeNode | number {
     if (this.isInternalNode()) {
       const currentCellOffsets = this.cellOffsets;
-      const index = binaryFindFirstGreatorElement(
+      const index = findIndexOfFirstGreatorElement(
         currentCellOffsets,
         key,
         (a, b) => Buffer.compare(this.readCellByPointer(a)!.key, b)
@@ -380,7 +380,7 @@ export class BTreeNode {
  * do binary search to find the first greator element
  * @returns index of the first greator element
  */
-export function binaryFindFirstGreatorElement<T, K>(
+export function findIndexOfFirstGreatorElement<T, K>(
   array: T[],
   target: K,
   comparator: (

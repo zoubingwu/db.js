@@ -56,14 +56,14 @@ export class PointerCell {
 }
 
 /**
- * 0              1                5                  9           +key_size        +value_size
- * +--------------+----------------+------------------+-------------+----------------+
- * | [byte] flags | [int] key_size | [int] value_size | [bytes] key | [bytes] value  |
- * +--------------+----------------+------------------+-------------+----------------+
+ * 0                4                  8           +key_size        +value_size
+ * +----------------+------------------+-------------+----------------+
+ * | [int] key_size | [int] value_size | [bytes] key | [bytes] value  |
+ * +----------------+------------------+-------------+----------------+
  */
 export class KeyValueCell {
   public static calcSize(keySize: number, valueSize: number) {
-    return 9 + keySize + valueSize;
+    return 8 + keySize + valueSize;
   }
 
   public static create(
@@ -71,9 +71,9 @@ export class KeyValueCell {
     value: Buffer,
     offset: number
   ): KeyValueCell {
-    const buf = Buffer.alloc(9);
-    buf.writeInt32BE(key.length, 1);
-    buf.writeInt32BE(value.length, 5);
+    const buf = Buffer.alloc(8);
+    buf.writeInt32BE(key.length, 0);
+    buf.writeInt32BE(value.length, 4);
     return new KeyValueCell(
       Buffer.concat([buf, key, value], buf.length + key.length + value.length),
       offset
@@ -83,21 +83,21 @@ export class KeyValueCell {
   public readonly type = CellType.KeyValue;
 
   public get keySize(): number {
-    return this.buffer.readInt32BE(1); // 4 bytes
+    return this.buffer.readInt32BE(0); // 4 bytes
   }
 
   public get valueSize(): number {
-    return this.buffer.readInt32BE(5); // 4 bytes
+    return this.buffer.readInt32BE(4); // 4 bytes
   }
 
   public get key(): Buffer {
-    return this.buffer.slice(9, 9 + this.keySize);
+    return this.buffer.slice(8, 8 + this.keySize);
   }
 
   public get value(): Buffer {
     return this.buffer.slice(
-      9 + this.keySize,
-      9 + this.keySize + this.valueSize
+      8 + this.keySize,
+      8 + this.keySize + this.valueSize
     );
   }
 

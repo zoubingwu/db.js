@@ -4,14 +4,12 @@ import { BTree } from './btree';
 import { Cursor } from './cursor';
 
 export class Database {
-  private readonly filePath: string;
   private readonly pager: Pager;
   private btree: BTree | null = null;
 
   constructor(filePath: string) {
-    this.filePath = filePath;
-    const isExist = fs.existsSync(this.filePath);
-    const fd = fs.openSync(this.filePath, isExist ? 'r+' : 'w+');
+    const isExist = fs.existsSync(filePath);
+    const fd = fs.openSync(filePath, isExist ? 'r+' : 'w+');
     this.pager = new Pager(fd);
   }
 

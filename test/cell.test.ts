@@ -24,6 +24,6 @@ test('KeyValueCell', () => {
   expect(cell.key.toString()).toBe('b');
   expect(cell.valueSize).toBe(9);
   expect(deserialize(cell.value)).toBe(1);
-  expect(cell.size).toBe(19);
+  expect(cell.size).toBe(18);
   expect(cell.offset).toBe(3000);
 });

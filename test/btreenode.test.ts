@@ -4,7 +4,7 @@ import {
   PAGE_SIZE,
   BTreeNode,
   KeyValueCell,
-  binaryFindFirstGreatorElement,
+  findIndexOfFirstGreatorElement,
 } from '../lib';
 
 describe('BTreeNode', () => {
@@ -95,31 +95,31 @@ test('binaryFindFirstGreatorElement', () => {
   let i;
   let comparator = (a: number, b: number) => a - b;
 
-  i = binaryFindFirstGreatorElement(arr, 3, comparator);
+  i = findIndexOfFirstGreatorElement(arr, 3, comparator);
   expect(i).toBe(3);
   expect(arr[i]).toBe(4);
 
-  i = binaryFindFirstGreatorElement(arr, 10, comparator);
+  i = findIndexOfFirstGreatorElement(arr, 10, comparator);
   expect(i).toBe(-1);
   expect(arr[i]).toBeUndefined();
 
-  i = binaryFindFirstGreatorElement(arr, 0, comparator);
+  i = findIndexOfFirstGreatorElement(arr, 0, comparator);
   expect(i).toBe(0);
   expect(arr[i]).toBe(1);
 
   arr = [];
-  i = binaryFindFirstGreatorElement(arr, 3, comparator);
+  i = findIndexOfFirstGreatorElement(arr, 3, comparator);
   expect(i).toBe(-1);
 
   arr = [1, 1, 1, 1, 1, 1, 1, 1, 1];
-  i = binaryFindFirstGreatorElement(arr, 1, comparator);
+  i = findIndexOfFirstGreatorElement(arr, 1, comparator);
   expect(i).toBe(-1);
 
   arr = [1, 1, 1, 1, 1, 1, 1, 1, 1];
-  i = binaryFindFirstGreatorElement(arr, 2, comparator);
+  i = findIndexOfFirstGreatorElement(arr, 2, comparator);
   expect(i).toBe(-1);
 
   arr = [1, 1, 1, 1, 1, 1, 1, 1, 1];
-  i = binaryFindFirstGreatorElement(arr, 0, comparator);
+  i = findIndexOfFirstGreatorElement(arr, 0, comparator);
   expect(i).toBe(0);
 });
